@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="HelpdeskService.API/HelpdeskService.API.csproj" />
+  <Project Path="HelpdeskService.Core/HelpdeskService.Core.csproj" />
+  <Project Path="HelpdeskService.Data/HelpdeskService.Data.csproj" />
+  <Project Path="HelpdeskService.Tests/HelpdeskService.Tests.csproj" />
+</Solution>
