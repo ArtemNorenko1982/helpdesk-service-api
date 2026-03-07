@@ -1,57 +1,48 @@
+using HelpdeskService.Core.Common;
 using HelpdeskService.Core.DTOs;
 using HelpdeskService.Core.Entities;
 using HelpdeskService.Core.Interfaces;
-using HelpdeskService.Data.Context;
-using Microsoft.EntityFrameworkCore;
 
 namespace HelpdeskService.Data.Services;
 
 public class TicketsService : ITicketsService
 {
-    private readonly HelpdeskDbContext _context;
+    private readonly ITicketRepository _ticketRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ITicketMapper _mapper;
 
-    public TicketsService(HelpdeskDbContext context)
+    public TicketsService(
+        ITicketRepository ticketRepository,
+        IUserRepository userRepository,
+        ITicketMapper mapper)
     {
-        _context = context;
+        _ticketRepository = ticketRepository;
+        _userRepository = userRepository;
+        _mapper = mapper;
     }
 
     public async Task<IEnumerable<TicketDto>> GetAllTicketsAsync()
     {
-        var tickets = await _context.Tickets
-            .Include(t => t.User)
-            .Include(t => t.Comments)
-                .ThenInclude(c => c.User)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
-
-        return tickets.Select(MapToDto);
+        var tickets = await _ticketRepository.GetAllAsync();
+        return tickets.Select(_mapper.MapToDto);
     }
 
-    public async Task<TicketDto?> GetTicketByIdAsync(int id)
+    public async Task<ServiceResult<TicketDto>> GetTicketByIdAsync(int id)
     {
-        var ticket = await _context.Tickets
-            .Include(t => t.User)
-            .Include(t => t.Comments)
-                .ThenInclude(c => c.User)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var ticket = await _ticketRepository.FindByIdAsync(id);
 
-        return ticket is null ? null : MapToDto(ticket);
+        return ticket is null
+            ? ServiceResult<TicketDto>.NotFound($"Ticket with ID {id} not found.")
+            : ServiceResult<TicketDto>.Success(_mapper.MapToDto(ticket));
     }
 
     public async Task<IEnumerable<TicketDto>> GetTicketsByUserIdAsync(int userId)
     {
-        var tickets = await _context.Tickets
-            .Include(t => t.User)
-            .Include(t => t.Comments)
-                .ThenInclude(c => c.User)
-            .Where(t => t.UserId == userId)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
-
-        return tickets.Select(MapToDto);
+        var tickets = await _ticketRepository.GetByUserIdAsync(userId);
+        return tickets.Select(_mapper.MapToDto);
     }
 
-    public async Task<TicketDto> CreateTicketAsync(int userId, CreateTicketDto dto)
+    public async Task<ServiceResult<TicketDto>> CreateTicketAsync(int userId, CreateTicketDto dto)
     {
         var ticket = new Ticket
         {
@@ -63,52 +54,57 @@ public class TicketsService : ITicketsService
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Tickets.Add(ticket);
-        await _context.SaveChangesAsync();
-
-        return (await GetTicketByIdAsync(ticket.Id))!;
+        var created = await _ticketRepository.AddAsync(ticket);
+        return ServiceResult<TicketDto>.Success(_mapper.MapToDto(created));
     }
 
-    public async Task<TicketDto?> UpdateTicketAsync(int id, int userId, UpdateTicketDto dto)
+    public async Task<ServiceResult<TicketDto>> UpdateTicketAsync(int id, int userId, UpdateTicketDto dto)
     {
-        var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+        var ticket = await _ticketRepository.FindByIdAsync(id);
+
         if (ticket is null)
-            return null;
+            return ServiceResult<TicketDto>.NotFound($"Ticket with ID {id} not found.");
 
         if (ticket.UserId != userId)
-            return null;
+            return ServiceResult<TicketDto>.Forbidden("You do not have permission to update this ticket.");
 
         if (dto.Title is not null) ticket.Title = dto.Title;
         if (dto.Description is not null) ticket.Description = dto.Description;
         if (dto.Status.HasValue) ticket.Status = dto.Status.Value;
         if (dto.Priority.HasValue) ticket.Priority = dto.Priority.Value;
-        ticket.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await _ticketRepository.UpdateAsync(ticket);
 
-        return await GetTicketByIdAsync(ticket.Id);
+        return ServiceResult<TicketDto>.Success(_mapper.MapToDto(ticket));
     }
 
-    public async Task<bool> DeleteTicketAsync(int id, int userId)
+    public async Task<ServiceResult<TicketDto>> DeleteTicketAsync(int id, int userId)
     {
-        var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == id);
-        if (ticket is null || ticket.UserId != userId)
-            return false;
+        var ticket = await _ticketRepository.FindByIdAsync(id);
 
-        _context.Tickets.Remove(ticket);
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<CommentDto?> AddCommentAsync(int ticketId, int userId, CreateCommentDto dto)
-    {
-        var ticket = await _context.Tickets.FindAsync(ticketId);
         if (ticket is null)
-            return null;
+            return ServiceResult<TicketDto>.NotFound($"Ticket with ID {id} not found.");
 
-        var user = await _context.Users.FindAsync(userId);
+        if (ticket.UserId != userId)
+            return ServiceResult<TicketDto>.Forbidden("You do not have permission to delete this ticket.");
+
+        var deleted = _mapper.MapToDto(ticket);
+        await _ticketRepository.RemoveAsync(ticket);
+
+        return ServiceResult<TicketDto>.Success(deleted);
+    }
+
+    public async Task<ServiceResult<CommentDto>> AddCommentAsync(int ticketId, int userId, CreateCommentDto dto)
+    {
+        var ticket = await _ticketRepository.FindByIdAsync(ticketId);
+
+        if (ticket is null)
+            return ServiceResult<CommentDto>.NotFound($"Ticket with ID {ticketId} not found.");
+
+        var user = await _userRepository.FindByIdAsync(userId);
+
         if (user is null)
-            return null;
+            return ServiceResult<CommentDto>.NotFound($"User with ID {userId} not found.");
 
         var comment = new Comment
         {
@@ -118,37 +114,9 @@ public class TicketsService : ITicketsService
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Comments.Add(comment);
-        await _context.SaveChangesAsync();
+        comment = await _ticketRepository.AddCommentAsync(comment);
+        comment.User = user;
 
-        return new CommentDto
-        {
-            Id = comment.Id,
-            Content = comment.Content,
-            CreatedAt = comment.CreatedAt,
-            UserId = comment.UserId,
-            Username = user.Username
-        };
+        return ServiceResult<CommentDto>.Success(_mapper.MapCommentToDto(comment));
     }
-
-    private static TicketDto MapToDto(Ticket ticket) => new()
-    {
-        Id = ticket.Id,
-        Title = ticket.Title,
-        Description = ticket.Description,
-        Status = ticket.Status.ToString(),
-        Priority = ticket.Priority.ToString(),
-        CreatedAt = ticket.CreatedAt,
-        UpdatedAt = ticket.UpdatedAt,
-        UserId = ticket.UserId,
-        Username = ticket.User?.Username ?? string.Empty,
-        Comments = ticket.Comments.Select(c => new CommentDto
-        {
-            Id = c.Id,
-            Content = c.Content,
-            CreatedAt = c.CreatedAt,
-            UserId = c.UserId,
-            Username = c.User?.Username ?? string.Empty
-        })
-    };
 }

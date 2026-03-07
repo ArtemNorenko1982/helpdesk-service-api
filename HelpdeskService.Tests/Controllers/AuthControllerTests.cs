@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using HelpdeskService.Core.DTOs;
+using HelpdeskService.Core.Entities;
 using HelpdeskService.Data.Context;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +15,12 @@ public class AuthControllerTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() },
+        PropertyNameCaseInsensitive = true
+    };
+
     public AuthControllerTests(WebApplicationFactory<Program> factory)
     {
         var dbName = $"AuthTestDb_{Guid.NewGuid()}";
@@ -19,15 +28,22 @@ public class AuthControllerTests : IClassFixture<WebApplicationFactory<Program>>
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<HelpdeskDbContext>));
-                if (descriptor != null)
-                    services.Remove(descriptor);
-
-                services.AddDbContext<HelpdeskDbContext>(options =>
-                    options.UseInMemoryDatabase(dbName));
+                ReplaceDbContext(services, dbName);
             });
         });
+    }
+
+    internal static void ReplaceDbContext(IServiceCollection services, string dbName)
+    {
+        var toRemove = services
+            .Where(d => d.ServiceType == typeof(DbContextOptions<HelpdeskDbContext>)
+                     || d.ServiceType == typeof(HelpdeskDbContext))
+            .ToList();
+        foreach (var descriptor in toRemove)
+            services.Remove(descriptor);
+
+        services.AddDbContext<HelpdeskDbContext>(options =>
+            options.UseInMemoryDatabase(dbName));
     }
 
     [Fact]
@@ -82,9 +98,11 @@ public class AuthControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<AuthResponseDto>(json, JsonOptions);
         Assert.NotNull(result);
         Assert.False(string.IsNullOrEmpty(result.Token));
+        Assert.Equal(UserRole.User, result.Role);
     }
 
     [Fact]

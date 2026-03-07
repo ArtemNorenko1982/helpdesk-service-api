@@ -1,6 +1,8 @@
+using HelpdeskService.Core.Common;
 using HelpdeskService.Core.DTOs;
 using HelpdeskService.Core.Entities;
 using HelpdeskService.Data.Context;
+using HelpdeskService.Data.Repositories;
 using HelpdeskService.Data.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +18,9 @@ public class TicketsServiceTests
         return new HelpdeskDbContext(options);
     }
 
+    private static TicketsService CreateService(HelpdeskDbContext context) =>
+        new(new TicketRepository(context), new UserRepository(context), new TicketMapper());
+
     private static async Task<User> SeedUserAsync(HelpdeskDbContext context, string suffix = "")
     {
         var user = new User
@@ -23,7 +28,7 @@ public class TicketsServiceTests
             Username = $"testuser{suffix}",
             Email = $"test{suffix}@example.com",
             PasswordHash = "hashed",
-            Role = "User"
+            Role = UserRole.User
         };
         context.Users.Add(user);
         await context.SaveChangesAsync();
@@ -31,26 +36,25 @@ public class TicketsServiceTests
     }
 
     [Fact]
-    public async Task CreateTicketAsync_ValidData_ReturnsTicketDto()
+    public async Task CreateTicketAsync_ValidData_ReturnsSuccess()
     {
-        using var context = CreateInMemoryContext(nameof(CreateTicketAsync_ValidData_ReturnsTicketDto));
+        using var context = CreateInMemoryContext(nameof(CreateTicketAsync_ValidData_ReturnsSuccess));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var dto = new CreateTicketDto
+        var result = await service.CreateTicketAsync(user.Id, new CreateTicketDto
         {
             Title = "Test Ticket",
             Description = "This is a test ticket",
             Priority = TicketPriority.High
-        };
+        });
 
-        var result = await service.CreateTicketAsync(user.Id, dto);
-
-        Assert.NotNull(result);
-        Assert.Equal("Test Ticket", result.Title);
-        Assert.Equal("High", result.Priority);
-        Assert.Equal("Open", result.Status);
-        Assert.Equal(user.Id, result.UserId);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal("Test Ticket", result.Value.Title);
+        Assert.Equal("High", result.Value.Priority);
+        Assert.Equal("Open", result.Value.Status);
+        Assert.Equal(user.Id, result.Value.UserId);
     }
 
     [Fact]
@@ -58,7 +62,7 @@ public class TicketsServiceTests
     {
         using var context = CreateInMemoryContext(nameof(GetAllTicketsAsync_ReturnsAllTickets));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
         await service.CreateTicketAsync(user.Id, new CreateTicketDto { Title = "T1", Description = "D1" });
         await service.CreateTicketAsync(user.Id, new CreateTicketDto { Title = "T2", Description = "D2" });
@@ -69,11 +73,11 @@ public class TicketsServiceTests
     }
 
     [Fact]
-    public async Task GetTicketByIdAsync_ExistingTicket_ReturnsDto()
+    public async Task GetTicketByIdAsync_ExistingTicket_ReturnsSuccess()
     {
-        using var context = CreateInMemoryContext(nameof(GetTicketByIdAsync_ExistingTicket_ReturnsDto));
+        using var context = CreateInMemoryContext(nameof(GetTicketByIdAsync_ExistingTicket_ReturnsSuccess));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
         var created = await service.CreateTicketAsync(user.Id, new CreateTicketDto
         {
@@ -81,21 +85,22 @@ public class TicketsServiceTests
             Description = "Description"
         });
 
-        var result = await service.GetTicketByIdAsync(created.Id);
+        var result = await service.GetTicketByIdAsync(created.Value!.Id);
 
-        Assert.NotNull(result);
-        Assert.Equal("FindMe", result.Title);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("FindMe", result.Value!.Title);
     }
 
     [Fact]
-    public async Task GetTicketByIdAsync_NonExistentTicket_ReturnsNull()
+    public async Task GetTicketByIdAsync_NonExistentTicket_ReturnsNotFound()
     {
-        using var context = CreateInMemoryContext(nameof(GetTicketByIdAsync_NonExistentTicket_ReturnsNull));
-        var service = new TicketsService(context);
+        using var context = CreateInMemoryContext(nameof(GetTicketByIdAsync_NonExistentTicket_ReturnsNotFound));
+        var service = CreateService(context);
 
         var result = await service.GetTicketByIdAsync(999);
 
-        Assert.Null(result);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ServiceResultError.NotFound, result.Error);
     }
 
     [Fact]
@@ -104,7 +109,7 @@ public class TicketsServiceTests
         using var context = CreateInMemoryContext(nameof(GetTicketsByUserIdAsync_ReturnsOnlyUserTickets));
         var user1 = await SeedUserAsync(context, "1");
         var user2 = await SeedUserAsync(context, "2");
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
         await service.CreateTicketAsync(user1.Id, new CreateTicketDto { Title = "U1T1", Description = "D" });
         await service.CreateTicketAsync(user1.Id, new CreateTicketDto { Title = "U1T2", Description = "D" });
@@ -117,95 +122,100 @@ public class TicketsServiceTests
     }
 
     [Fact]
-    public async Task UpdateTicketAsync_ValidRequest_UpdatesAndReturnsDto()
+    public async Task UpdateTicketAsync_ValidRequest_ReturnsSuccess()
     {
-        using var context = CreateInMemoryContext(nameof(UpdateTicketAsync_ValidRequest_UpdatesAndReturnsDto));
+        using var context = CreateInMemoryContext(nameof(UpdateTicketAsync_ValidRequest_ReturnsSuccess));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var ticket = await service.CreateTicketAsync(user.Id, new CreateTicketDto
+        var created = await service.CreateTicketAsync(user.Id, new CreateTicketDto
         {
             Title = "Original",
             Description = "Original Desc"
         });
 
-        var updateDto = new UpdateTicketDto
+        var result = await service.UpdateTicketAsync(created.Value!.Id, user.Id, new UpdateTicketDto
         {
             Title = "Updated Title",
             Status = TicketStatus.InProgress
-        };
+        });
 
-        var result = await service.UpdateTicketAsync(ticket.Id, user.Id, updateDto);
-
-        Assert.NotNull(result);
-        Assert.Equal("Updated Title", result.Title);
-        Assert.Equal("InProgress", result.Status);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Updated Title", result.Value!.Title);
+        Assert.Equal("InProgress", result.Value.Status);
     }
 
     [Fact]
-    public async Task UpdateTicketAsync_WrongUser_ReturnsNull()
+    public async Task UpdateTicketAsync_WrongUser_ReturnsForbidden()
     {
-        using var context = CreateInMemoryContext(nameof(UpdateTicketAsync_WrongUser_ReturnsNull));
+        using var context = CreateInMemoryContext(nameof(UpdateTicketAsync_WrongUser_ReturnsForbidden));
         var user1 = await SeedUserAsync(context, "1");
         var user2 = await SeedUserAsync(context, "2");
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var ticket = await service.CreateTicketAsync(user1.Id, new CreateTicketDto
+        var created = await service.CreateTicketAsync(user1.Id, new CreateTicketDto
         {
             Title = "Owned by user1",
             Description = "D"
         });
 
-        var result = await service.UpdateTicketAsync(ticket.Id, user2.Id, new UpdateTicketDto { Title = "Hijack" });
+        var result = await service.UpdateTicketAsync(created.Value!.Id, user2.Id, new UpdateTicketDto
+        {
+            Title = "Hijack"
+        });
 
-        Assert.Null(result);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ServiceResultError.Forbidden, result.Error);
     }
 
     [Fact]
-    public async Task DeleteTicketAsync_ValidRequest_ReturnsTrueAndDeletes()
+    public async Task DeleteTicketAsync_ValidRequest_ReturnsSuccessAndDeletes()
     {
-        using var context = CreateInMemoryContext(nameof(DeleteTicketAsync_ValidRequest_ReturnsTrueAndDeletes));
+        using var context = CreateInMemoryContext(nameof(DeleteTicketAsync_ValidRequest_ReturnsSuccessAndDeletes));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var ticket = await service.CreateTicketAsync(user.Id, new CreateTicketDto
+        var created = await service.CreateTicketAsync(user.Id, new CreateTicketDto
         {
             Title = "To Delete",
             Description = "D"
         });
 
-        var deleted = await service.DeleteTicketAsync(ticket.Id, user.Id);
-        var found = await service.GetTicketByIdAsync(ticket.Id);
+        var deleteResult = await service.DeleteTicketAsync(created.Value!.Id, user.Id);
+        var getResult = await service.GetTicketByIdAsync(created.Value.Id);
 
-        Assert.True(deleted);
-        Assert.Null(found);
+        Assert.True(deleteResult.IsSuccess);
+        Assert.Equal("To Delete", deleteResult.Value!.Title);
+        Assert.False(getResult.IsSuccess);
+        Assert.Equal(ServiceResultError.NotFound, getResult.Error);
     }
 
     [Fact]
-    public async Task DeleteTicketAsync_WrongUser_ReturnsFalse()
+    public async Task DeleteTicketAsync_WrongUser_ReturnsForbidden()
     {
-        using var context = CreateInMemoryContext(nameof(DeleteTicketAsync_WrongUser_ReturnsFalse));
+        using var context = CreateInMemoryContext(nameof(DeleteTicketAsync_WrongUser_ReturnsForbidden));
         var user1 = await SeedUserAsync(context, "1");
         var user2 = await SeedUserAsync(context, "2");
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var ticket = await service.CreateTicketAsync(user1.Id, new CreateTicketDto
+        var created = await service.CreateTicketAsync(user1.Id, new CreateTicketDto
         {
             Title = "Protected",
             Description = "D"
         });
 
-        var result = await service.DeleteTicketAsync(ticket.Id, user2.Id);
+        var result = await service.DeleteTicketAsync(created.Value!.Id, user2.Id);
 
-        Assert.False(result);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ServiceResultError.Forbidden, result.Error);
     }
 
     [Fact]
-    public async Task AddCommentAsync_ValidRequest_ReturnsCommentDto()
+    public async Task AddCommentAsync_ValidRequest_ReturnsSuccess()
     {
-        using var context = CreateInMemoryContext(nameof(AddCommentAsync_ValidRequest_ReturnsCommentDto));
+        using var context = CreateInMemoryContext(nameof(AddCommentAsync_ValidRequest_ReturnsSuccess));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
         var ticket = await service.CreateTicketAsync(user.Id, new CreateTicketDto
         {
@@ -213,28 +223,30 @@ public class TicketsServiceTests
             Description = "D"
         });
 
-        var comment = await service.AddCommentAsync(ticket.Id, user.Id, new CreateCommentDto
+        var result = await service.AddCommentAsync(ticket.Value!.Id, user.Id, new CreateCommentDto
         {
             Content = "This is a comment"
         });
 
-        Assert.NotNull(comment);
-        Assert.Equal("This is a comment", comment.Content);
-        Assert.Equal(user.Id, comment.UserId);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal("This is a comment", result.Value.Content);
+        Assert.Equal(user.Id, result.Value.UserId);
     }
 
     [Fact]
-    public async Task AddCommentAsync_NonExistentTicket_ReturnsNull()
+    public async Task AddCommentAsync_NonExistentTicket_ReturnsNotFound()
     {
-        using var context = CreateInMemoryContext(nameof(AddCommentAsync_NonExistentTicket_ReturnsNull));
+        using var context = CreateInMemoryContext(nameof(AddCommentAsync_NonExistentTicket_ReturnsNotFound));
         var user = await SeedUserAsync(context);
-        var service = new TicketsService(context);
+        var service = CreateService(context);
 
-        var comment = await service.AddCommentAsync(999, user.Id, new CreateCommentDto
+        var result = await service.AddCommentAsync(999, user.Id, new CreateCommentDto
         {
             Content = "Comment on missing ticket"
         });
 
-        Assert.Null(comment);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ServiceResultError.NotFound, result.Error);
     }
 }

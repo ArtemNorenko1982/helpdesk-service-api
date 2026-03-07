@@ -1,6 +1,6 @@
 using HelpdeskService.Core.Interfaces;
 using HelpdeskService.Data.Context;
-using HelpdeskService.Data.Services;
+using HelpdeskService.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,10 +11,11 @@ public static class DataServiceExtensions
     public static IServiceCollection AddDataServices(this IServiceCollection services)
     {
         services.AddDbContext<HelpdeskDbContext>(options =>
-            options.UseInMemoryDatabase("HelpdeskDb"));
+            options.UseLazyLoadingProxies()
+                   .UseInMemoryDatabase("HelpdeskDb"));
 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<ITicketsService, TicketsService>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ITicketRepository, TicketRepository>();
 
         return services;
     }

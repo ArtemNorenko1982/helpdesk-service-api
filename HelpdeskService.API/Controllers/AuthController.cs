@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using HelpdeskService.Core.Common;
 using HelpdeskService.Core.DTOs;
 using HelpdeskService.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -24,10 +25,10 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
         var result = await _authService.RegisterAsync(dto);
-        if (result is null)
-            return Conflict(new { Message = "A user with this email already exists." });
+        if (!result.IsSuccess)
+            return Conflict(new { result.ErrorMessage });
 
-        return CreatedAtAction(nameof(Register), result);
+        return CreatedAtAction(nameof(Register), result.Value);
     }
 
     /// <summary>Authenticates a user and returns a JWT token.</summary>
@@ -37,9 +38,9 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var result = await _authService.LoginAsync(dto);
-        if (result is null)
-            return Unauthorized(new { Message = "Invalid email or password." });
+        if (!result.IsSuccess)
+            return Unauthorized(new { result.ErrorMessage });
 
-        return Ok(result);
+        return Ok(result.Value);
     }
 }

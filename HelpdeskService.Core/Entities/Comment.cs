@@ -7,8 +7,8 @@ public class Comment
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int TicketId { get; set; }
-    public Ticket Ticket { get; set; } = null!;
+    public virtual Ticket Ticket { get; set; } = null!;
 
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 }

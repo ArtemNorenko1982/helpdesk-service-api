@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using HelpdeskService.Core.DTOs;
+using HelpdeskService.Core.Entities;
 using HelpdeskService.Data.Context;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +16,12 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
 {
     private readonly WebApplicationFactory<Program> _factory;
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() },
+        PropertyNameCaseInsensitive = true
+    };
+
     public TicketsControllerTests(WebApplicationFactory<Program> factory)
     {
         var dbName = $"TicketsTestDb_{Guid.NewGuid()}";
@@ -20,13 +29,7 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<HelpdeskDbContext>));
-                if (descriptor != null)
-                    services.Remove(descriptor);
-
-                services.AddDbContext<HelpdeskDbContext>(options =>
-                    options.UseInMemoryDatabase(dbName));
+                AuthControllerTests.ReplaceDbContext(services, dbName);
             });
         });
     }
@@ -47,7 +50,8 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
             Password = "Password123!"
         });
 
-        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponseDto>();
+        var json = await loginResponse.Content.ReadAsStringAsync();
+        var auth = JsonSerializer.Deserialize<AuthResponseDto>(json, JsonOptions);
         return auth!.Token;
     }
 
@@ -72,7 +76,7 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
         {
             Title = "Test Ticket",
             Description = "A ticket for testing",
-            Priority = Core.Entities.TicketPriority.Medium
+            Priority = TicketPriority.Medium
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -89,7 +93,7 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
         {
             Title = "My Ticket",
             Description = "Description",
-            Priority = Core.Entities.TicketPriority.Low
+            Priority = TicketPriority.Low
         });
 
         var response = await client.GetAsync("/api/v1/tickets/my");
@@ -132,7 +136,7 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
     }
 
     [Fact]
-    public async Task DeleteTicket_OwnTicket_Returns204()
+    public async Task DeleteTicket_OwnTicket_Returns200WithDeletedTicket()
     {
         var client = _factory.CreateClient();
         var token = await GetTokenAsync(client, "_del");
@@ -147,6 +151,10 @@ public class TicketsControllerTests : IClassFixture<WebApplicationFactory<Progra
         var created = await createResponse.Content.ReadFromJsonAsync<TicketDto>();
         var deleteResponse = await client.DeleteAsync($"/api/v1/tickets/{created!.Id}");
 
-        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+        var deleted = await deleteResponse.Content.ReadFromJsonAsync<TicketDto>();
+        Assert.NotNull(deleted);
+        Assert.Equal("Delete Me", deleted.Title);
     }
 }

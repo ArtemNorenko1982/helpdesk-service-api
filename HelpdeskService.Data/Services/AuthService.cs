@@ -1,62 +1,58 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
+using HelpdeskService.Core.Common;
 using HelpdeskService.Core.DTOs;
 using HelpdeskService.Core.Entities;
 using HelpdeskService.Core.Interfaces;
-using HelpdeskService.Core.Settings;
-using HelpdeskService.Data.Context;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace HelpdeskService.Data.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly HelpdeskDbContext _context;
-    private readonly JwtSettings _jwtSettings;
+    private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly ITokenService _tokenService;
 
-    public AuthService(HelpdeskDbContext context, IOptions<JwtSettings> jwtSettings)
+    public AuthService(
+        IUserRepository userRepository,
+        IPasswordHasher passwordHasher,
+        ITokenService tokenService)
     {
-        _context = context;
-        _jwtSettings = jwtSettings.Value;
+        _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
     }
 
-    public async Task<AuthResponseDto?> RegisterAsync(RegisterDto dto)
+    public async Task<ServiceResult<AuthResponseDto>> RegisterAsync(RegisterDto dto)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
-            return null;
+        if (await _userRepository.ExistsByEmailAsync(dto.Email))
+            return ServiceResult<AuthResponseDto>.Conflict("A user with this email already exists.");
 
         var user = new User
         {
             Username = dto.Username,
             Email = dto.Email,
-            PasswordHash = HashPassword(dto.Password),
-            Role = "User",
+            PasswordHash = _passwordHasher.Hash(dto.Password),
+            Role = UserRole.User,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _userRepository.AddAsync(user);
 
-        return GenerateAuthResponse(user);
+        return ServiceResult<AuthResponseDto>.Success(BuildAuthResponse(user));
     }
 
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
+    public async Task<ServiceResult<AuthResponseDto>> LoginAsync(LoginDto dto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-        if (user is null || !VerifyPassword(dto.Password, user.PasswordHash))
-            return null;
+        var user = await _userRepository.FindByEmailAsync(dto.Email);
 
-        return GenerateAuthResponse(user);
+        if (user is null || !_passwordHasher.Verify(dto.Password, user.PasswordHash))
+            return ServiceResult<AuthResponseDto>.Unauthorized("Invalid email or password.");
+
+        return ServiceResult<AuthResponseDto>.Success(BuildAuthResponse(user));
     }
 
-    private AuthResponseDto GenerateAuthResponse(User user)
+    private AuthResponseDto BuildAuthResponse(User user)
     {
-        var expiry = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationInMinutes);
-        var token = GenerateJwtToken(user, expiry);
+        var token = _tokenService.GenerateToken(user, out var expiresAt);
 
         return new AuthResponseDto
         {
@@ -64,63 +60,7 @@ public class AuthService : IAuthService
             Username = user.Username,
             Email = user.Email,
             Role = user.Role,
-            ExpiresAt = expiry
+            ExpiresAt = expiresAt
         };
-    }
-
-    private string GenerateJwtToken(User user, DateTime expiry)
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: expiry,
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    private static string HashPassword(string password)
-    {
-        var salt = RandomNumberGenerator.GetBytes(16);
-        var hash = Rfc2898DeriveBytes.Pbkdf2(
-            Encoding.UTF8.GetBytes(password),
-            salt,
-            iterations: 100_000,
-            hashAlgorithm: HashAlgorithmName.SHA256,
-            outputLength: 32);
-
-        return Convert.ToBase64String(salt) + ":" + Convert.ToBase64String(hash);
-    }
-
-    private static bool VerifyPassword(string password, string storedHash)
-    {
-        var parts = storedHash.Split(':');
-        if (parts.Length != 2)
-            return false;
-
-        var salt = Convert.FromBase64String(parts[0]);
-        var expectedHash = Convert.FromBase64String(parts[1]);
-
-        var actualHash = Rfc2898DeriveBytes.Pbkdf2(
-            Encoding.UTF8.GetBytes(password),
-            salt,
-            iterations: 100_000,
-            hashAlgorithm: HashAlgorithmName.SHA256,
-            outputLength: 32);
-
-        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
     }
 }

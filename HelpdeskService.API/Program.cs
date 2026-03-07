@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Asp.Versioning;
 using HelpdeskService.API.Swagger;
 using HelpdeskService.Core.Settings;
@@ -73,7 +74,9 @@ builder.Services.AddApiVersioning(options =>
 });
 
 // ---------- Controllers ----------
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // ---------- Swagger ----------
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
@@ -81,6 +84,7 @@ builder.Services.AddSwaggerGen();
 
 // ---------- Data & Business Services ----------
 builder.Services.AddDataServices();
+builder.Services.AddBusinessServices();
 
 var app = builder.Build();
 

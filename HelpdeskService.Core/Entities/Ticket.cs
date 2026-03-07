@@ -11,9 +11,9 @@ public class Ticket
     public DateTime? UpdatedAt { get; set; }
 
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 
-    public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+    public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
 }
 
 public enum TicketStatus
