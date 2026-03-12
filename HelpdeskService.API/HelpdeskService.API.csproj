@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\Helpdesk.Service.Library\Helpdesk.Service.Library.csproj" />
     <ProjectReference Include="..\HelpdeskService.Core\HelpdeskService.Core.csproj" />
     <ProjectReference Include="..\HelpdeskService.Data\HelpdeskService.Data.csproj" />
   </ItemGroup>
