@@ -12,7 +12,7 @@ public static class DataServiceExtensions
     {
         services.AddDbContext<HelpdeskDbContext>(options =>
             options.UseLazyLoadingProxies()
-                   .UseInMemoryDatabase("HelpdeskDb"));
+            .UseSqlite($"Data Source={AppDomain.CurrentDomain.BaseDirectory}HelpDesk.db"));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITicketRepository, TicketRepository>();

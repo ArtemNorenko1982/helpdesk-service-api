@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="Helpdesk.Service.Library/Helpdesk.Service.Library.csproj" Id="ffaa201e-9b0d-4c0a-b45b-42dc46158445" />
   <Project Path="HelpdeskService.API/HelpdeskService.API.csproj" />
   <Project Path="HelpdeskService.Core/HelpdeskService.Core.csproj" />
   <Project Path="HelpdeskService.Data/HelpdeskService.Data.csproj" />
