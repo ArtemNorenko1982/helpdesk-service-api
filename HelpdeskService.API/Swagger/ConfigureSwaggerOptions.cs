@@ -1,6 +1,6 @@
 using Asp.Versioning.ApiExplorer;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace HelpdeskService.API.Swagger;
@@ -31,19 +31,9 @@ public class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
             Description = "Enter your JWT token. Example: Bearer {your_token}"
         });
 
-        options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
         {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
         });
     }
 

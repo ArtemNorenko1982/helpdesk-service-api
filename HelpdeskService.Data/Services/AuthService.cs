@@ -50,6 +50,19 @@ public class AuthService : IAuthService
         return ServiceResult<AuthResponseDto>.Success(BuildAuthResponse(user));
     }
 
+    public async Task<ServiceResult<AuthResponseDto>> RefreshTokenAsync(string token)
+        {
+        var principal = _tokenService.GetPrincipalFromExpiredToken(token);
+        var email = principal;
+        if (email is null)
+            return ServiceResult<AuthResponseDto>.Unauthorized("Invalid token.");
+        var user = await _userRepository.FindByEmailAsync(email);
+        if (user is null)
+            return ServiceResult<AuthResponseDto>.Unauthorized("User not found.");
+        return ServiceResult<AuthResponseDto>.Success(BuildAuthResponse(user));
+    }
+
+
     private AuthResponseDto BuildAuthResponse(User user)
     {
         var token = _tokenService.GenerateToken(user, out var expiresAt);
