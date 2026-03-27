@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotmnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY ["HelpdeskService.API/HelpdeskService.API.csproj", "HelpdeskService.API/"]
@@ -12,7 +12,7 @@ COPY . .
 RUN dotnet build "HelpdeskService.API/HelpdeskService.API.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnetpublish "HelpdeskService.API/HelpdeskService.API.csproj" -c Release -o /app/publish
+RUN dotnet publish "HelpdeskService.API/HelpdeskService.API.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app

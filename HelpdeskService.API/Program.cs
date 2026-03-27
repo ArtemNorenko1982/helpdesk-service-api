@@ -11,6 +11,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 // ---------- Configuration ----------
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
@@ -83,6 +84,7 @@ builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwa
 builder.Services.AddSwaggerGen();
 
 // ---------- Data & Business Services ----------
+builder.Services.AddDataBase();
 builder.Services.AddDataServices();
 builder.Services.AddBusinessServices();
 
