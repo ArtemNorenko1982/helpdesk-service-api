@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Asp.Versioning;
+using Azure.Identity;
 using HelpdeskService.API.Swagger;
 using HelpdeskService.Core.Settings;
 using HelpdeskService.Data.Extensions;
@@ -11,6 +12,12 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --------- Azure Key Vault ---------
+var keyVaultUri = builder.Configuration["AzureKeyVault:Uri"];
+if (!string.IsNullOrEmpty(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(new Uri(keyVaultUri), new DefaultAzureCredential());
+}
 
 // ---------- Configuration ----------
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
@@ -84,10 +91,10 @@ builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwa
 builder.Services.AddSwaggerGen();
 
 // ---------- Data & Business Services ----------
-builder.Services.AddDataBase();
+builder.Services.AddDataBase(builder.Configuration);
 builder.Services.AddDataServices();
 builder.Services.AddBusinessServices();
-
+builder.Services.AddApplicationHealthChecks();
 var app = builder.Build();
 
 // ---------- Middleware Pipeline ----------
@@ -111,7 +118,8 @@ app.UseCors("AllowConfiguredOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+app.UseHttpsRedirection();
+app.MapHealthChecks("/health");
 app.Run();
 
 public partial class Program {}

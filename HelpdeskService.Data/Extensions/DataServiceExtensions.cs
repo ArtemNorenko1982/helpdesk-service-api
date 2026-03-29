@@ -4,6 +4,7 @@ using HelpdeskService.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace HelpdeskService.Data.Extensions;
 
@@ -26,10 +27,8 @@ public static class DataServiceExtensions
         return services;
     }
 
-    public static IServiceCollection AddDataBase(this IServiceCollection services)
+    public static IServiceCollection AddDataBase(this IServiceCollection services, IConfiguration configuration)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         services.AddDbContext<HelpdeskDbContext>(options =>
