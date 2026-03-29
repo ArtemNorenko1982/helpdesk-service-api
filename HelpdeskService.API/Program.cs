@@ -28,21 +28,24 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSetting
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? Array.Empty<string>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowConfiguredOrigins", policy =>
-    {
+
+
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowConfiguredOrigins", policy => {
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+            .AllowAnyMethod();
     });
-
-    options.AddPolicy("AllowAll", policy =>
+    
+    if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+    }
 });
 
 // ---------- Authentication & Authorization ----------
@@ -98,6 +101,12 @@ builder.Services.AddApplicationHealthChecks();
 var app = builder.Build();
 
 // ---------- Middleware Pipeline ----------
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                       Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -135,4 +144,4 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 
 app.Run();
 
-public partial class Program {}
+public partial class Program { }
