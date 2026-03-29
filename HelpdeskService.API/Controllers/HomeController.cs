@@ -18,10 +18,4 @@ public class HomeController : ControllerBase
             Timestamp = DateTime.UtcNow
         });
     }
-
-    [HttpGet("health")]
-    public IActionResult Health()
-    {
-        return Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
-    }
 }

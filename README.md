@@ -1,6 +1,6 @@
 # HelpDesk Service API
 
-A production-ready RESTful Web API for managing helpdesk support tickets, built with **.NET 8** using a clean **3-layered monolith architecture**.
+A production-ready RESTful Web API for managing helpdesk support tickets, built with **.NET 10** using a clean **3-layered monolith architecture**.
 
 ---
 
@@ -45,24 +45,25 @@ The solution follows a **3-layered architecture**:
 ```
 
 Additionally:
+
 - **`HelpdeskService.Tests`** — xUnit test project covering unit and integration tests.
 
 ---
 
 ## Tech Stack
 
-| Technology | Purpose |
-|---|---|
-| .NET 8 | Framework |
-| ASP.NET Core Web API | HTTP server |
-| Entity Framework Core 8 | ORM |
-| EF Core InMemory | Database provider (default) |
-| JWT Bearer Authentication | Authorization |
-| Swashbuckle / Swagger | API documentation |
-| Asp.Versioning.Mvc | API versioning |
-| xUnit | Unit & Integration testing |
-| Moq | Mocking in tests |
-| Microsoft.AspNetCore.Mvc.Testing | Integration test host |
+| Technology                       | Purpose                     |
+| -------------------------------- | --------------------------- |
+| .NET 10                          | Framework                   |
+| ASP.NET Core Web API             | HTTP server                 |
+| Entity Framework Core 10         | ORM                         |
+| EF Core InMemory                 | Database provider (default) |
+| JWT Bearer Authentication        | Authorization               |
+| Swashbuckle / Swagger            | API documentation           |
+| Asp.Versioning.Mvc               | API versioning              |
+| xUnit                            | Unit & Integration testing  |
+| Moq                              | Mocking in tests            |
+| Microsoft.AspNetCore.Mvc.Testing | Integration test host       |
 
 ---
 
@@ -120,7 +121,7 @@ HelpdeskService.sln
 
 ### Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 ### Run the API
 
@@ -154,10 +155,7 @@ Edit `HelpdeskService.API/appsettings.json`:
     "ExpirationInMinutes": 60
   },
   "Cors": {
-    "AllowedOrigins": [
-      "http://localhost:3000",
-      "http://localhost:4200"
-    ]
+    "AllowedOrigins": ["http://localhost:3000", "http://localhost:4200"]
   }
 }
 ```
@@ -172,29 +170,29 @@ All endpoints are versioned under `/api/v1/`.
 
 ### HomeController
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/home` | ❌ | Welcome message |
-| GET | `/api/v1/home/health` | ❌ | Health check |
+| Method | Endpoint              | Auth | Description     |
+| ------ | --------------------- | ---- | --------------- |
+| GET    | `/api/v1/home`        | ❌   | Welcome message |
+| GET    | `/api/v1/home/health` | ❌   | Health check    |
 
 ### AuthController
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/auth/register` | ❌ | Register a new user |
-| POST | `/api/v1/auth/login` | ❌ | Login and get JWT token |
+| Method | Endpoint                | Auth | Description             |
+| ------ | ----------------------- | ---- | ----------------------- |
+| POST   | `/api/v1/auth/register` | ❌   | Register a new user     |
+| POST   | `/api/v1/auth/login`    | ❌   | Login and get JWT token |
 
 ### TicketsController
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/v1/tickets` | ✅ Admin | Get all tickets |
-| GET | `/api/v1/tickets/my` | ✅ User | Get current user's tickets |
-| GET | `/api/v1/tickets/{id}` | ✅ User | Get ticket by ID |
-| POST | `/api/v1/tickets` | ✅ User | Create a new ticket |
-| PUT | `/api/v1/tickets/{id}` | ✅ Owner | Update a ticket |
-| DELETE | `/api/v1/tickets/{id}` | ✅ Owner | Delete a ticket |
-| POST | `/api/v1/tickets/{id}/comments` | ✅ User | Add a comment |
+| Method | Endpoint                        | Auth     | Description                |
+| ------ | ------------------------------- | -------- | -------------------------- |
+| GET    | `/api/v1/tickets`               | ✅ Admin | Get all tickets            |
+| GET    | `/api/v1/tickets/my`            | ✅ User  | Get current user's tickets |
+| GET    | `/api/v1/tickets/{id}`          | ✅ User  | Get ticket by ID           |
+| POST   | `/api/v1/tickets`               | ✅ User  | Create a new ticket        |
+| PUT    | `/api/v1/tickets/{id}`          | ✅ Owner | Update a ticket            |
+| DELETE | `/api/v1/tickets/{id}`          | ✅ Owner | Delete a ticket            |
+| POST   | `/api/v1/tickets/{id}/comments` | ✅ User  | Add a comment              |
 
 ---
 
@@ -228,6 +226,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -257,6 +256,7 @@ http://localhost:5000
 ```
 
 The Swagger UI includes:
+
 - Full API documentation for all versions
 - JWT Bearer authentication support (click **Authorize** and enter `Bearer {your_token}`)
 - Interactive request testing
@@ -279,10 +279,10 @@ The `api-supported-versions` header is included in all responses.
 
 Two CORS policies are configured:
 
-| Policy | Description |
-|--------|-------------|
+| Policy                   | Description                                                   |
+| ------------------------ | ------------------------------------------------------------- |
 | `AllowConfiguredOrigins` | (Default) Allows origins from `Cors:AllowedOrigins` in config |
-| `AllowAll` | Open policy — useful for development |
+| `AllowAll`               | Open policy — useful for development                          |
 
 Configure allowed origins in `appsettings.json` under `Cors:AllowedOrigins`.
 
@@ -321,37 +321,37 @@ The test suite includes:
 
 ### User
 
-| Field | Type | Description |
-|-------|------|-------------|
-| Id | int | Primary key |
-| Username | string | Unique username |
-| Email | string | Unique email address |
-| PasswordHash | string | PBKDF2-hashed password |
-| Role | string | `User` or `Admin` |
-| CreatedAt | DateTime | Account creation time |
+| Field        | Type     | Description            |
+| ------------ | -------- | ---------------------- |
+| Id           | int      | Primary key            |
+| Username     | string   | Unique username        |
+| Email        | string   | Unique email address   |
+| PasswordHash | string   | PBKDF2-hashed password |
+| Role         | string   | `User` or `Admin`      |
+| CreatedAt    | DateTime | Account creation time  |
 
 ### Ticket
 
-| Field | Type | Description |
-|-------|------|-------------|
-| Id | int | Primary key |
-| Title | string | Ticket title (max 200) |
-| Description | string | Ticket description (max 2000) |
-| Status | enum | `Open`, `InProgress`, `Resolved`, `Closed` |
-| Priority | enum | `Low`, `Medium`, `High`, `Critical` |
-| UserId | int | Owner's user ID |
-| CreatedAt | DateTime | Creation timestamp |
-| UpdatedAt | DateTime? | Last update timestamp |
+| Field       | Type      | Description                                |
+| ----------- | --------- | ------------------------------------------ |
+| Id          | int       | Primary key                                |
+| Title       | string    | Ticket title (max 200)                     |
+| Description | string    | Ticket description (max 2000)              |
+| Status      | enum      | `Open`, `InProgress`, `Resolved`, `Closed` |
+| Priority    | enum      | `Low`, `Medium`, `High`, `Critical`        |
+| UserId      | int       | Owner's user ID                            |
+| CreatedAt   | DateTime  | Creation timestamp                         |
+| UpdatedAt   | DateTime? | Last update timestamp                      |
 
 ### Comment
 
-| Field | Type | Description |
-|-------|------|-------------|
-| Id | int | Primary key |
-| Content | string | Comment text (max 1000) |
-| TicketId | int | Associated ticket |
-| UserId | int | Author's user ID |
-| CreatedAt | DateTime | Creation timestamp |
+| Field     | Type     | Description             |
+| --------- | -------- | ----------------------- |
+| Id        | int      | Primary key             |
+| Content   | string   | Comment text (max 1000) |
+| TicketId  | int      | Associated ticket       |
+| UserId    | int      | Author's user ID        |
+| CreatedAt | DateTime | Creation timestamp      |
 
 ---
 
@@ -361,4 +361,3 @@ The test suite includes:
 - JWT tokens are signed with **HMAC-SHA256**
 - Tokens expire after a configurable duration (default: 60 minutes)
 - Owner checks enforce that users can only modify their own tickets
-
