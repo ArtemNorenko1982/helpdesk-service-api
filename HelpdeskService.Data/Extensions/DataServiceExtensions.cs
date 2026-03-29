@@ -23,7 +23,7 @@ public static class DataServiceExtensions
         services.AddDbContext<HelpdeskDbContext>(options =>
             options.UseLazyLoadingProxies()
             .UseSqlite($"Data Source={AppDomain.CurrentDomain.BaseDirectory}HelpDesk.db"));
-        
+
         return services;
     }
 
@@ -33,7 +33,10 @@ public static class DataServiceExtensions
 
         services.AddDbContext<HelpdeskDbContext>(options =>
             options.UseLazyLoadingProxies()
-            .UseSqlServer(connectionString));
+            .UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+            }));
 
         return services;
     }
