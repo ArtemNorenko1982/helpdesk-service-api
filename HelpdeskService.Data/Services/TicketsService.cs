@@ -58,14 +58,14 @@ public class TicketsService : ITicketsService
         return ServiceResult<TicketDto>.Success(_mapper.MapToDto(created));
     }
 
-    public async Task<ServiceResult<TicketDto>> UpdateTicketAsync(int id, int userId, UpdateTicketDto dto)
+    public async Task<ServiceResult<TicketDto>> UpdateTicketAsync(int id, int userId, UserRole role, UpdateTicketDto dto)
     {
         var ticket = await _ticketRepository.FindByIdAsync(id);
 
         if (ticket is null)
             return ServiceResult<TicketDto>.NotFound($"Ticket with ID {id} not found.");
 
-        if (ticket.UserId != userId)
+        if(!HasPermission(ticket, userId, role))
             return ServiceResult<TicketDto>.Forbidden("You do not have permission to update this ticket.");
 
         if (dto.Title is not null) ticket.Title = dto.Title;
@@ -78,15 +78,15 @@ public class TicketsService : ITicketsService
         return ServiceResult<TicketDto>.Success(_mapper.MapToDto(ticket));
     }
 
-    public async Task<ServiceResult<TicketDto>> DeleteTicketAsync(int id, int userId)
+    public async Task<ServiceResult<TicketDto>> DeleteTicketAsync(int id, int userId, UserRole role)
     {
         var ticket = await _ticketRepository.FindByIdAsync(id);
 
         if (ticket is null)
             return ServiceResult<TicketDto>.NotFound($"Ticket with ID {id} not found.");
 
-        if (ticket.UserId != userId)
-            return ServiceResult<TicketDto>.Forbidden("You do not have permission to delete this ticket.");
+        if (!HasPermission(ticket, userId, role))
+            return ServiceResult<TicketDto>.Forbidden("You do not have permission to update this ticket.");
 
         var deleted = _mapper.MapToDto(ticket);
         await _ticketRepository.RemoveAsync(ticket);
@@ -118,5 +118,10 @@ public class TicketsService : ITicketsService
         comment.User = user;
 
         return ServiceResult<CommentDto>.Success(_mapper.MapCommentToDto(comment));
+    }
+
+    private bool HasPermission(Ticket ticket, int userId, UserRole role)
+    {
+        return ticket.UserId == userId || role is UserRole.Admin or UserRole.Agent;
     }
 }
