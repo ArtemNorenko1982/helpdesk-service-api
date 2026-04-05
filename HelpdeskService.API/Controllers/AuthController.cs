@@ -1,9 +1,11 @@
 using Asp.Versioning;
+using HelpdeskService.API.Helpers;
 using HelpdeskService.Core.Common;
 using HelpdeskService.Core.DTOs;
 using HelpdeskService.Core.Entities;
 using HelpdeskService.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HelpdeskService.API.Controllers;
 
@@ -39,6 +41,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var result = await _authService.LoginAsync(dto);
+        var user = User.Identity?.IsAuthenticated == true ? User.GetCurrentUserName() : "Anonymous";
         if (!result.IsSuccess)
             return Unauthorized(new { result.ErrorMessage });
 
@@ -53,13 +56,14 @@ public class AuthController : ControllerBase
     {
         if (User.Identity?.IsAuthenticated != true)
             return Unauthorized();
-        var username = User.Identity.Name;
+
         var response = new AuthResponseDto
         {
-            Username = username,
-            Email = User.Claims.FirstOrDefault(c => c.Type == "email")?.Value,
-            Role = Enum.TryParse<UserRole>(User.Claims.FirstOrDefault(c => c.Type == "role")?.Value, out var role) ? role : UserRole.User,
+            Username = User.GetCurrentUserName(),
+            Email = User.GetCurrentUserEmail(),
+            Role = User.GetCurrentUserRole(),
         };
+
         return Ok(response);
     }
 
@@ -79,10 +83,5 @@ public class AuthController : ControllerBase
     [HttpPost]
     [Route("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public IActionResult Logout()
-    {
-        // For JWT, logout is typically handled on the client side by deleting the token.
-        // Optionally, you could implement token blacklisting here.
-        return NoContent();
-    }
+    public IActionResult Logout() => Ok(new {Message = "Logged out successfully."});
 }

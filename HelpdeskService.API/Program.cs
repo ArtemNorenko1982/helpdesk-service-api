@@ -6,6 +6,7 @@ using HelpdeskService.API.Swagger;
 using HelpdeskService.Core.Settings;
 using HelpdeskService.Data.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -27,8 +28,6 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSetting
 // ---------- CORS ----------
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? Array.Empty<string>();
-
-
 
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowConfiguredOrigins", policy => {
@@ -69,7 +68,12 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+     {
+         options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
+         options.AddPolicy("RequireAgent", policy => policy.RequireRole("Agent"));
+         options.AddPolicy("RequireAdminOrAgent", policy => policy.RequireRole("Admin", "Agent"));
+     });
 
 // ---------- API Versioning ----------
 builder.Services.AddApiVersioning(options =>
@@ -103,8 +107,7 @@ var app = builder.Build();
 // ---------- Middleware Pipeline ----------
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
-                       Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
 if (app.Environment.IsDevelopment())

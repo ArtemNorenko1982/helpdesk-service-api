@@ -29,4 +29,12 @@ public class UserRepository : IUserRepository
         await _context.SaveChangesAsync();
         return user;
     }
+
+    public async Task<IEnumerable<User>> GetAllAsync() => await _context.Users.ToListAsync();
+    
+    public Task UpdateAsync(User user)
+    {
+        _context.Users.Update(user);
+        return _context.SaveChangesAsync();
+    } 
 }

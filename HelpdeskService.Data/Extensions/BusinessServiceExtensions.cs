@@ -14,6 +14,7 @@ public static class BusinessServiceExtensions
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITicketsService, TicketsService>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }
