@@ -42,6 +42,27 @@ public class UserService : IUserService
         return ServiceResult<UserDto>.Success(MapToDto(user));
     }
 
+    public async Task<ServiceResult<bool>> DeleteUserByIdAsync(int id)
+    {
+        var result = await _userRepository.DeleteByIdAsync(id);
+        if (result > 0) return ServiceResult<bool>.Success(true);
+        else return ServiceResult<bool>.NotFound($"User with ID {id} not found.");
+    }
+
+    public async Task<ServiceResult<UserDto>> UpdateUserAsync(UserDto userDto)
+    {
+        var user = await _userRepository.FindByIdAsync(userDto.Id);
+        if (user != null)
+        {
+            await _userRepository.UpdateAsync(user);
+            return ServiceResult<UserDto>.Success(MapToDto(user));
+        }
+        else
+        {
+            return ServiceResult<UserDto>.NotFound(userDto.Email);
+        }
+    }
+
     private static UserDto MapToDto(User user) => new()
     {
         Id = user.Id,

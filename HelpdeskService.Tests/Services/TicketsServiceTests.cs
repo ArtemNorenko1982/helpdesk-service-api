@@ -134,7 +134,9 @@ public class TicketsServiceTests
             Description = "Original Desc"
         });
 
-        var result = await service.UpdateTicketAsync(created.Value!.Id, user.Id, new UpdateTicketDto
+        var role = UserRole.Admin;
+
+        var result = await service.UpdateTicketAsync(created.Value!.Id, user.Id, role, new UpdateTicketDto
         {
             Title = "Updated Title",
             Status = TicketStatus.InProgress
@@ -159,7 +161,9 @@ public class TicketsServiceTests
             Description = "D"
         });
 
-        var result = await service.UpdateTicketAsync(created.Value!.Id, user2.Id, new UpdateTicketDto
+        var role = UserRole.Admin;
+
+        var result = await service.UpdateTicketAsync(created.Value!.Id, user2.Id, role, new UpdateTicketDto
         {
             Title = "Hijack"
         });
@@ -181,7 +185,7 @@ public class TicketsServiceTests
             Description = "D"
         });
 
-        var deleteResult = await service.DeleteTicketAsync(created.Value!.Id, user.Id);
+        var deleteResult = await service.DeleteTicketAsync(created.Value!.Id, user.Id, UserRole.Admin);
         var getResult = await service.GetTicketByIdAsync(created.Value.Id);
 
         Assert.True(deleteResult.IsSuccess);
@@ -204,7 +208,7 @@ public class TicketsServiceTests
             Description = "D"
         });
 
-        var result = await service.DeleteTicketAsync(created.Value!.Id, user2.Id);
+        var result = await service.DeleteTicketAsync(created.Value!.Id, user2.Id, UserRole.Admin);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ServiceResultError.Forbidden, result.Error);

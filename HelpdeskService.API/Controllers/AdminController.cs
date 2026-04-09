@@ -51,4 +51,22 @@ public class AdminController : ControllerBase
             ? Ok(result.Value)
             : NotFound(new { result.ErrorMessage });
     }
+
+    [HttpPut("users/{id:int}")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUserAsync(int id, [FromBody] UserDto user)
+    {
+        var result = await _userService.UpdateUserAsync(user);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(new { result.ErrorMessage });
+    }
+
+    [HttpDelete("users/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUserById(int id)
+    {
+        var result = await _userService.DeleteUserByIdAsync(id);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(new { result.ErrorMessage });
+    }
 }
