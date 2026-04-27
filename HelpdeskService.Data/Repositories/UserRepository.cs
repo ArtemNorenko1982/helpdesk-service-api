@@ -36,5 +36,17 @@ public class UserRepository : IUserRepository
     {
         _context.Users.Update(user);
         return _context.SaveChangesAsync();
-    } 
+    }
+
+    public async Task<int> DeleteByIdAsync(int id)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == id);
+        if (user != null)
+        {
+            _context.Users.Remove(user);
+            return await _context.SaveChangesAsync();
+        }
+
+        return 0;
+    }
 }

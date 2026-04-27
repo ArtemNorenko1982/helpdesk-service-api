@@ -22,6 +22,7 @@ public class HelpdeskDbContext : DbContext
             entity.Property(u => u.Username).IsRequired().HasMaxLength(100);
             entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
             entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.UpdatedAt).HasDefaultValue(null);
             entity.Property(u => u.Role)
                   .IsRequired()
                   .HasConversion<string>();

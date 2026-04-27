@@ -51,4 +51,31 @@ public class AdminController : ControllerBase
             ? Ok(result.Value)
             : NotFound(new { result.ErrorMessage });
     }
+
+    [HttpPost("users")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CreateUserAsync([FromBody] UserDto userDto)
+    {
+        var result = await _userService.CreateUserAsync(userDto);
+        return Ok(result);
+    }
+
+    [HttpPut("users/{id:int}")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUserAsync(int id, [FromBody] UserDto user)
+    {
+        var result = await _userService.UpdateUserAsync(user);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(new { result.ErrorMessage });
+    }
+
+    [HttpDelete("users/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUserById(int id)
+    {
+        var result = await _userService.DeleteUserByIdAsync(id);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(new { result.ErrorMessage });
+    }
 }
