@@ -8,10 +8,14 @@ namespace HelpdeskService.Data.Services;
 public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly IPasswordService _passwordService;
 
-    public UserService(IUserRepository userRepository)
+    public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IPasswordService passwordService)
     {
         _userRepository = userRepository;
+        _passwordHasher = passwordHasher;
+        _passwordService = passwordService;
     }
 
     public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
@@ -61,6 +65,25 @@ public class UserService : IUserService
         {
             return ServiceResult<UserDto>.NotFound(userDto.Email);
         }
+    }
+
+    public async Task<ServiceResult<UserDto>> CreateUserAsync(UserDto dto)
+    {
+        if (await _userRepository.ExistsByEmailAsync(dto.Email))
+            return ServiceResult<UserDto>.Conflict("A user with this email already exists.");
+
+        var user = new User
+        {
+            Username = dto.Username,
+            Email = dto.Email,
+            PasswordHash = _passwordHasher.Hash(_passwordService.GeneratePassword(11)),
+            Role = UserRole.Guest,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _userRepository.AddAsync(user);
+
+        return ServiceResult<UserDto>.Success(MapToDto(user));
     }
 
     private static UserDto MapToDto(User user) => new()

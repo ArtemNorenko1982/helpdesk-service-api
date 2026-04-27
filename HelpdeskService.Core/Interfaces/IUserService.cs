@@ -11,4 +11,5 @@ public interface IUserService
     Task<ServiceResult<UserDto>> ChangeRoleAsync(int userId, UserRole newRole);
     Task<ServiceResult<bool>> DeleteUserByIdAsync(int id);
     Task<ServiceResult<UserDto>> UpdateUserAsync(UserDto userDto);
+    Task<ServiceResult<UserDto>> CreateUserAsync(UserDto userDto);
 }

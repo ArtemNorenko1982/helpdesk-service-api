@@ -52,6 +52,15 @@ public class AdminController : ControllerBase
             : NotFound(new { result.ErrorMessage });
     }
 
+    [HttpPost("users")]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> CreateUserAsync([FromBody] UserDto userDto)
+    {
+        var result = await _userService.CreateUserAsync(userDto);
+        return Ok(result);
+    }
+
     [HttpPut("users/{id:int}")]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
